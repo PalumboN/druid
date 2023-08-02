@@ -6,7 +6,8 @@ Class {
 		'methodName',
 		'numArgs',
 		'currentBasicBlock',
-		'visitedBlocks'
+		'visitedBlocks',
+		'blocks'
 	],
 	#category : #'Druid-BytecodeGeneration'
 }
@@ -14,23 +15,41 @@ Class {
 { #category : #'ir-to-target' }
 DRBytecodeGenerator >> generateJump: aDRBranch [
 
-	| createJumpToEnd |
-	self flag: #TOCHECK. "Always ifTrue: ?"
-	builder addLiteral: #ifTrue:.
+	| createJumpToEnd jumpBlock contOnTrue tailCont |
+	builder addLiteral: #ifTrue:. "Always ifTrue: ?"
 
-	builder jumpAheadTo: #else if: false.
-	self visitBlock: aDRBranch trueBranch.
-	createJumpToEnd := currentBasicBlock endInstruction isBackJump not.
+	jumpBlock := currentBasicBlock.
+
+	contOnTrue := self nextBasicBlock = aDRBranch trueBranch.
+	builder jumpAheadTo: #else if: contOnTrue not.
+
+	self visitBlocksUntil: [ :b |
+		| branchFinished |
+		branchFinished := contOnTrue
+			                  ifTrue: [ b = aDRBranch falseBranch ]
+			                  ifFalse: [ b = aDRBranch trueBranch ].
+		branchFinished ifTrue: [
+			tailCont := b hasPredecessor: currentBasicBlock "This means that one branch jump to the other, so continue" ].
+		branchFinished ].
+
+	createJumpToEnd := tailCont not and: [
+		                   (currentBasicBlock endInstruction isBackJump or: [
+			                    currentBasicBlock endInstruction isReturn ]) not ].
+
 	createJumpToEnd ifTrue: [ builder jumpAheadTo: #end ].
 	builder jumpAheadTarget: #else.
-	self visitBlock: aDRBranch falseBranch.
+
+	self visitBlocksUntil: [ :b | (b isDominatedBy: jumpBlock) not ].
+
 	createJumpToEnd ifTrue: [ builder jumpAheadTarget: #end ]
 ]
 
 { #category : #API }
 DRBytecodeGenerator >> generateTargetASTFromIR: aDRControlFlowGraph methodName: selector [
 
-	self visitBlock: aDRControlFlowGraph initialBasicBlock.
+	blocks := aDRControlFlowGraph reversePostOrderBlocks.
+
+	self visitAllBlocks
 ]
 
 { #category : #initialization }
@@ -51,6 +70,12 @@ DRBytecodeGenerator >> isResultInstruction: aDRInstruction [
 DRBytecodeGenerator >> methodName: aString [
 
 	methodName := aString
+]
+
+{ #category : #accessos }
+DRBytecodeGenerator >> nextBasicBlock [
+
+	^ blocks first
 ]
 
 { #category : #accessing }
@@ -102,16 +127,28 @@ DRBytecodeGenerator >> visitAddition: aDRAdd [
 	self sendMessage: #+ fromInstruction: aDRAdd
 ]
 
+{ #category : #visiting }
+DRBytecodeGenerator >> visitAllBlocks [
+
+	self visitBlocksUntil: [ false ]
+]
+
 { #category : #'ir-to-target' }
 DRBytecodeGenerator >> visitBlock: aDRBasicBlock [
 
+	| backJumpPredecessors |
 	currentBasicBlock := aDRBasicBlock.
 	self pushBlock: aDRBasicBlock.
 
 	"Take care of backjumps!"
-	(aDRBasicBlock predecessors anySatisfy: [ :pred |
-		 pred endInstruction isBackJump ]) ifTrue: [
-		builder jumpBackTarget: #begin ].
+	backJumpPredecessors := aDRBasicBlock predecessors select: [ :pred |
+		                        pred endInstruction isBackJump ].
+	backJumpPredecessors isNotEmpty ifTrue: [ builder jumpBackTarget: #begin ].
+
+
+	(aDRBasicBlock predecessors copyWithoutAll: backJumpPredecessors) size > 1 ifTrue: [
+		builder jumpAheadTarget: aDRBasicBlock id asString asSymbol ].
+
 
 	aDRBasicBlock instructionsDo: [ :i |
 		(self isResultInstruction: i) ifTrue: [ i acceptVisitor: self ] ].
@@ -123,6 +160,14 @@ DRBytecodeGenerator >> visitBlockClosure: aDRBlockClosure [
 
 	| blockCFG |
 	blockCFG := aDRBlockClosure generateCFG. 1halt.
+]
+
+{ #category : #visiting }
+DRBytecodeGenerator >> visitBlocksUntil: stopBlock [
+
+	[ blocks isEmpty ] whileFalse: [
+		(stopBlock cull: self nextBasicBlock) ifTrue: [ ^ self ].
+		self visitBlock: blocks removeFirst ]
 ]
 
 { #category : #'ir-to-target' }
@@ -175,7 +220,8 @@ DRBytecodeGenerator >> visitJump: aDRJump [
 
 	aDRJump isBackJump ifTrue: [ ^ builder jumpBackTo: #begin ].
 
-	self visitBlock: aDRJump target
+	aDRJump target = self nextBasicBlock ifFalse: [
+		builder jumpAheadTo: aDRJump target id asString asSymbol ]
 ]
 
 { #category : #visiting }

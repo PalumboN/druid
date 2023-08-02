@@ -243,27 +243,23 @@ DRBytecodeGeneratorTest >> testMethodCustomisationDo [
 DRBytecodeGeneratorTest >> testMethodCustomisationSelect [
 
 	| method result cfg selector |
-	self skip. "TODO: Fix blocks linearization"
-
 	compilerCompiler := DRMethodCompilerCompiler new.
-	compilerCompiler irGenerator typeSystem:
-		(typeSystem := DRCustomisationTypeSystem new).
+	compilerCompiler irGenerator typeSystem: (typeSystem := DRCustomisationTypeSystem new).
 	bytecodeGenerator := DRBytecodeGenerator new.
-	selector := #select:.
+	selector := #detect:.
 	method := Collection >> selector.
 
 	compilerCompiler interpreter: {  }.
 	cfg := self generateDruidIRFor: method.
 	compilerCompiler optimize: cfg.
 	compilerCompiler optimize: cfg.
+	compilerCompiler optimize: cfg.
 
 	method := self generateMethodFromCFG: cfg withSelector: selector.
 
-	result := method
-		          valueWithReceiver: { 1. 2. 3 }
-		          arguments: { [ :e | e even ] }.
+	result := method valueWithReceiver: { 1. 2. 3 } arguments: { [ :e | e even ] }.
 
-	self assertCollection: result includesAll: { 1. 2. 3 }.
+	self assert: result equals: 2
 ]
 
 { #category : #tests }

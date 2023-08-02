@@ -130,11 +130,12 @@ DRConstantValue >> simpleConstantFold [
 
 { #category : #types }
 DRConstantValue >> type [
-	
+
 	value = nil ifTrue: [ ^ DRUndefinedType new ].
-	(#(true false) includes: value) ifTrue: [ ^ DRBooleanType new ].
+	(#( true false ) includes: value) ifTrue: [ ^ DRBooleanType new ].
 	value isInteger ifTrue: [ ^ DRIntegerType new ].
-	^ value class
+	value isGlobalVariable ifTrue: [ ^ DRClassType for: value value class ].
+	^ DRClassType for: value class
 ]
 
 { #category : #accessing }
