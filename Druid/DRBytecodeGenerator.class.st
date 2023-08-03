@@ -199,6 +199,10 @@ DRBytecodeGenerator >> visitCopy: aDRCopy [
 { #category : #'ir-to-target' }
 DRBytecodeGenerator >> visitEqualsThan: aDREqualsThanComparison inBranch: aDRBranchIfCondition [
 
+	(aDRBranchIfCondition operand2 isConstant and: [
+		 aDRBranchIfCondition operand2 value = true ]) ifTrue: [
+		^ aDRBranchIfCondition operand1 acceptVisitor: self ].
+
 	self sendMessage: #= fromInstruction: aDRBranchIfCondition
 ]
 
