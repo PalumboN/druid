@@ -87,6 +87,15 @@ DRBytecodeGeneratorTest >> generateMethodFromCFG: aDRControlFlowGraph withSelect
 	^ bytecodeGenerator targetAST
 ]
 
+{ #category : #install }
+DRBytecodeGeneratorTest >> installMethod: method in: aClass [
+
+	| selector |
+	selector := method selector.
+	aClass addAndClassifySelector: selector withMethod: method inProtocol: '*DrOpal-Extensions'.
+	aClass addSelectorSilently: selector withMethod: method
+]
+
 { #category : #running }
 DRBytecodeGeneratorTest >> setUp [
 	super setUp.
@@ -259,6 +268,56 @@ DRBytecodeGeneratorTest >> testMethodCustomisationDo [
 		do: [ :e |
 			e addAndClassifySelector: selector withMethod: method inProtocol: '*DrOpal-Extensions'.
 			e addSelectorSilently: selector withMethod: method ]"
+]
+
+{ #category : #tests }
+DRBytecodeGeneratorTest >> testMethodCustomisationFactorial [
+
+	| method result cfg selector n |
+	compilerCompiler := DRMethodCompilerCompiler new.
+	compilerCompiler irGenerator typeSystem: (typeSystem := DRCustomisationTypeSystem new).
+	bytecodeGenerator := DRBytecodeGenerator new.
+	selector := #factorial.
+	method := Integer >> selector.
+	n := 40.
+
+	compilerCompiler interpreter: n.
+	cfg := self generateDruidIRFor: method.
+	compilerCompiler optimize: cfg.
+	compilerCompiler optimize: cfg.
+	compilerCompiler optimize: cfg.
+	compilerCompiler optimize: cfg.
+
+	method := self generateMethodFromCFG: cfg withSelector: selector.
+
+	result := method valueWithReceiver: n arguments: {  }.
+
+	self assert: result > 10000
+]
+
+{ #category : #tests }
+DRBytecodeGeneratorTest >> testMethodCustomisationMax [
+
+	| method result cfg selector |
+	compilerCompiler := DRMethodCompilerCompiler new.
+	compilerCompiler irGenerator typeSystem: (typeSystem := DRCustomisationTypeSystem new).
+	bytecodeGenerator := DRBytecodeGenerator new.
+	selector := #max.
+	method := Collection >> selector.
+
+	compilerCompiler interpreter: {  }.
+	cfg := self generateDruidIRFor: method.
+	compilerCompiler optimize: cfg.
+	compilerCompiler optimize: cfg.
+	compilerCompiler optimize: cfg.
+
+	method := self generateMethodFromCFG: cfg withSelector: selector.
+
+	result := method valueWithReceiver: { 1. 17. 3 } arguments: {  }.
+
+	self assert: result equals: 17.
+	method selector: selector , '2'.
+	self installMethod: method in: Array
 ]
 
 { #category : #tests }

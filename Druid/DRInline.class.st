@@ -40,10 +40,10 @@ DRInline >> generateInlineIRForMethod: classAndMethodToInline of: aMessageSend [
 { #category : #inlining }
 DRInline >> generateInlineIRForMethods: methodsToInline of: aMessageSend [
 
-	| returnValues lastBlock |
-
+	| returnValues lastBlock typeWithMethods |
+	typeWithMethods := self prepareMethodsForInlining: methodsToInline.
 	returnValues := OrderedCollection new.
-	methodsToInline allButLastDo: [ :classAndMethod |
+	typeWithMethods associations allButLastDo: [ :classAndMethod |
 		| jump |
 		jump := inlineGenerator currentBasicBlock endInstruction:
 			        (DRBranchIfCondition operands: {
@@ -54,14 +54,14 @@ DRInline >> generateInlineIRForMethods: methodsToInline of: aMessageSend [
 		returnValues add: (self generateInlineIRForMethod: classAndMethod of: aMessageSend).
 		jump newFalseBranch: inlineGenerator newBasicBlock ].
 
-	returnValues add: (self generateInlineIRForMethod: methodsToInline last of: aMessageSend).
+	returnValues add:
+		(self generateInlineIRForMethod: typeWithMethods associations last of: aMessageSend).
 
 	returnValues size = 1 ifTrue: [ ^ returnValues first ].
 
 	lastBlock := inlineGenerator newBasicBlock.
 
-	returnValues do: [ :returnValue |
-		returnValue basicBlock jumpTo: lastBlock ].
+	returnValues do: [ :returnValue | returnValue basicBlock jumpTo: lastBlock ].
 	^ lastBlock addInstruction:
 		  (aMessageSend instructionFactory phiWithVariables: returnValues)
 ]
@@ -117,4 +117,24 @@ DRInline >> methodsToInlineOf: messageSend [
 		^ { (#default -> messageSend methodNode) } ].
 
 	^ inlineGenerator typeSystem methodsForMessage: messageSend
+]
+
+{ #category : #inline }
+DRInline >> prepareMethodsForInlining: methodsToInline [
+
+	| currentTemporaries |
+	currentTemporaries := inlineGenerator definedTemporaryNames.
+	^ methodsToInline asDictionary collect: [ :m |
+		  | method newTempraries |
+		  method := m.
+		  newTempraries := method temporaryNames.
+
+		  "Rename temporaries with same name"
+		  newTempraries select: [ :t | currentTemporaries includes: t ] thenDo: [ :t |
+			  method := (RBParseTreeRewriter rename: t to: t , '_')
+				            executeTree: method copy;
+				            tree ].
+		  currentTemporaries addAll: method temporaryNames.
+
+		  method ]
 ]

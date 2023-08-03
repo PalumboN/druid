@@ -4,6 +4,15 @@ Class {
 	#category : #'Druid-CompilerCompiler'
 }
 
+{ #category : #accessing }
+DRMethodIRGenerator >> definedTemporaryNames [
+
+	| res |
+	res := OrderedCollection new.
+	executionState executionStack framesDo: [ :f | res addAll: f temporaryNames ].
+	^ res
+]
+
 { #category : #visiting }
 DRMethodIRGenerator >> finishCodeInterpretation: lastFrame [
 
@@ -54,7 +63,8 @@ DRMethodIRGenerator >> interpretAssignmentNode: aRBAssignmentNode [
 					  aRBAssignmentNode variable binding index asDRValue.
 					  value } ].
 
-	aRBAssignmentNode variable binding originalVar isTempVariable ifTrue: [
+	"UnresolvedVariable due to renames after inlines"
+	(self isTemporaryVariable: aRBAssignmentNode variable variable) ifTrue: [
 		| result |
 		result := self
 			          addInstructionFrom: aRBAssignmentNode
@@ -70,6 +80,12 @@ DRMethodIRGenerator >> interpretAssignmentNode: aRBAssignmentNode [
 		^ result ].
 
 	self unexplored
+]
+
+{ #category : #testing }
+DRMethodIRGenerator >> isTemporaryVariable: aVariable [
+
+	^ aVariable isTempVariable or: [ aVariable = UnresolvedVariable instance ]
 ]
 
 { #category : #accessing }
@@ -173,7 +189,7 @@ DRMethodIRGenerator >> visitTemporaryVariableNode: aRBVariableNode [
 	| value |
 	value := self temporaryAt: aRBVariableNode name.
 
-	aRBVariableNode isTempVariable ifTrue: [
+	(self isTemporaryVariable: aRBVariableNode variable) ifTrue: [
 		| store |
 		store := self topFrame temporaryAt: aRBVariableNode name withState: executionState.
 
@@ -186,4 +202,11 @@ DRMethodIRGenerator >> visitTemporaryVariableNode: aRBVariableNode [
 
 	"Else, it is an argument"
 	^ self pushOperand: value
+]
+
+{ #category : #visiting }
+DRMethodIRGenerator >> visitVariableNode: aRBVariableNode [
+	"From UnresolvedVariable, probably because of renaming after inline"
+
+	^ self visitTemporaryVariableNode: aRBVariableNode
 ]

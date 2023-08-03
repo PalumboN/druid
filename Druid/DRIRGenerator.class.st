@@ -251,6 +251,7 @@ DRIRGenerator >> initializeSpecialCases [
 	specialCases at: #druidFail put: #interpretDruidFailWith:.
 	specialCases at: #value put: #interpretBlockValueWith:.
 	specialCases at: #value: put: #interpretBlockValueWith:.
+	specialCases at: #value:value: put: #interpretBlockValueWith:.
 	specialCases at: #cull: put: #interpretBlockCullWith:.
 	specialCases at: #ifTrue: put: #interpretIfTrueWith:.
 	specialCases at: #whileTrue: put: #interpretWhileTrueWith:.
