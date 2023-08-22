@@ -71,6 +71,7 @@ DRInline >> inline: messageSend [
 
 	| methodsToInline inlinedMethodReturnValue |
 
+	"By avoiding to inline primitives, this check should not be necessary anymore"
 	(self isIgnoredSelector: messageSend) 
 		ifTrue: [ ^ self ].
 
@@ -126,15 +127,17 @@ DRInline >> prepareMethodsForInlining: methodsToInline [
 	currentTemporaries := inlineGenerator definedTemporaryNames.
 	^ methodsToInline asDictionary collect: [ :m |
 		  | method newTempraries |
-		  method := m.
-		  newTempraries := method temporaryNames.
+		  "No methods to inline have nil ?"
+		  m ifNotNil: [
+			  method := m.
+			  newTempraries := method temporaryNames.
 
-		  "Rename temporaries with same name"
-		  newTempraries select: [ :t | currentTemporaries includes: t ] thenDo: [ :t |
-			  method := (RBParseTreeRewriter rename: t to: t , '_')
-				            executeTree: method copy;
-				            tree ].
-		  currentTemporaries addAll: method temporaryNames.
+			  "Rename temporaries with same name"
+			  newTempraries select: [ :t | currentTemporaries includes: t ] thenDo: [ :t |
+				  method := (RBParseTreeRewriter rename: t to: t , '_')
+					            executeTree: method copy;
+					            tree ].
+			  currentTemporaries addAll: method temporaryNames.
 
-		  method ]
+			  method ] ]
 ]

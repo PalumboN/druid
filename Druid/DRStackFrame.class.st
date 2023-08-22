@@ -128,6 +128,13 @@ DRStackFrame >> initialize [
 	temporaries := Dictionary new.
 ]
 
+{ #category : #inspection }
+DRStackFrame >> inspectionSourceCode [
+
+	<inspectorPresentationOrder: 30 title: 'Source code'>
+	^ method inspectionSourceCode
+]
+
 { #category : #accessing }
 DRStackFrame >> irGenerator [
 

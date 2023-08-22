@@ -24,6 +24,12 @@ DruidTestInterpreter >> basicInlineMethod [
 ]
 
 { #category : #'as yet unclassified' }
+DruidTestInterpreter >> complexNonLocalInline: n [
+
+	^ self something: n ifAbsent: [ ^ 87 ]
+]
+
+{ #category : #'as yet unclassified' }
 DruidTestInterpreter >> constant [
 
 	^ 73
@@ -1712,4 +1718,11 @@ DruidTestInterpreter >> returnArg: argument [
 		ifTrue: [ 1 ]
 		ifFalse: [ 2 ].
 	^ argument + acc
+]
+
+{ #category : #'as yet unclassified' }
+DruidTestInterpreter >> something: n ifAbsent: exceptionBlock [
+
+	1 to: 10 do: [ :i | i > n ifTrue: [ ^ i ] ].
+	^ exceptionBlock value
 ]

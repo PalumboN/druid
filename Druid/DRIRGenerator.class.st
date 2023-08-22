@@ -169,6 +169,15 @@ DRIRGenerator >> currentOperandStack [
 	^ executionState vmOperandStack
 ]
 
+{ #category : #accessing }
+DRIRGenerator >> definedTemporaryNames [
+
+	| res |
+	res := OrderedCollection new.
+	executionState executionStack framesDo: [ :f | res addAll: f temporaryNames ].
+	^ res
+]
+
 { #category : #'execution state' }
 DRIRGenerator >> executionStack [
 	
@@ -1386,16 +1395,34 @@ DRIRGenerator >> ir [
 { #category : #'deferred returns' }
 DRIRGenerator >> mergeDeferredReturns: deferredMethodReturns in: aDRBasicBlock [
 
-	| frameReturns stackFrame |
-	self flag: #TODO. "Is it ok to take the first one?"
-	stackFrame := deferredMethodReturns values first topFrame.
+
+	"
+	- Make all return value's basic blocks to jump to the parameter basic block
+	- Merge all return values in a phi function and add it to the parameter basic block
+	- Update frame return value to the new phi function
+	- Create a new frameReturn (?)
+	"
+
+	| frameReturns stackFrames methodNode stackFrame |
 	currentBasicBlock := aDRBasicBlock.
 	frameReturns := deferredMethodReturns keys.
-	frameReturns do: [ :frameReturn | 
-		(aDRBasicBlock hasPredecessor: frameReturn basicBlock) ifTrue: [ "Remove to keep the order" 
+	frameReturns do: [ :frameReturn |
+
+		"All frameReturn's blocks will jump to the parameter.
+		If the blocks has successors we have a problem -> CFG could be broken"
+		1 haltIf: [ frameReturn basicBlock successors isNotEmpty ]. "Something bad will happen"
+
+		(aDRBasicBlock hasPredecessor: frameReturn basicBlock) ifTrue: [ "Remove to keep the order"
 			aDRBasicBlock removePredecessor: frameReturn basicBlock ].
 		frameReturn basicBlock jumpTo: aDRBasicBlock ].
-	self addInstructionFrom: stackFrame method instructionKind: DRPhiFunction operands: frameReturns.
+	
+	stackFrames := deferredMethodReturns values collect: [:state | state topFrame].
+	methodNode := stackFrames first method.
+	self
+		addInstructionFrom: methodNode
+		instructionKind: DRPhiFunction
+		operands: frameReturns.
+	stackFrame := stackFrames first. "Is it ok? Others stack frame will not be used anymore?"
 	stackFrame returnValue: self popOperand.
 	^ self addFrameReturn: stackFrame
 ]

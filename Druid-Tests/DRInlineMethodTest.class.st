@@ -111,6 +111,20 @@ DRInlineMethodTest >> testMethodSendingIndirectClassGetToIt [
 ]
 
 { #category : #tests }
+DRInlineMethodTest >> testMethodWithComplexNonLocalReturns [
+
+	| cfg finalBasicBlocks |
+	cfg := self generateDruidIRFor: #complexNonLocalInline:.
+
+	cfg applyOptimisation: DRInline new.
+	cfg applyOptimisation: DRInline new.
+	1halt.
+	self assert: cfg messageSends isEmpty.
+	finalBasicBlocks := cfg blocks select: [ :b | b successors isEmpty ].
+	self assert: finalBasicBlocks size equals: 1
+]
+
+{ #category : #tests }
 DRInlineMethodTest >> testNotInlineMethodWithNoTypeAnnotation [
 
 	| cfg messageSend |	

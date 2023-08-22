@@ -632,6 +632,12 @@ DRBasicBlock >> isExitBlock: anObject [
 	isExitBlock := anObject
 ]
 
+{ #category : #testing }
+DRBasicBlock >> isInCFG [
+
+	^ self controlFlowGraph blocks includes: self
+]
+
 { #category : #building }
 DRBasicBlock >> jitCompileTimeVariable: aName [
 
